@@ -34,27 +34,18 @@ class ImageGenerator:
         self.rotation = rotation
         self.mirroring = mirroring
         self.shuffle = shuffle
-
-        if self.shuffle:
-            random.shuffle(self.image_filenames)
-
         self.current_index = 0
         self.epoch_index = 0
         self.end_epoch = False
         
-
-
     def next(self):
         # This function creates a batch of images and corresponding labels and returns them.
         # In this context a "batch" of images just means a bunch, say 10 images that are forwarded at once.
         # Note that your amount of total data might not be divisible without remainder with the batch_size.
         # Think about how to handle such cases
         
-        if self.end_epoch:
-            self.current_index = 0
-            self.end_epoch = False
-            if self.shuffle:
-                random.shuffle(self.image_filenames)
+        if self.shuffle:
+            random.shuffle(self.image_filenames)
         
         images = []         #batch of images
         labels = []         #array with corresponding labels
@@ -70,11 +61,10 @@ class ImageGenerator:
                 images.append(skimage.transform.resize(self.augment(src), self.image_size))
                 labels.append(self.labels[file_name.replace('.npy','')])
                 self.current_index += 1
-        if self.shuffle:
-            random_indices = np.random.permutation(self.batch_size)
-
-            images = [images[i] for i in random_indices]
-            labels = [labels[i] for i in random_indices]
+        
+        if self.end_epoch:
+            self.current_index = 0
+            self.end_epoch = False
             
         return np.array(images), np.array(labels)
 
