@@ -23,10 +23,12 @@ class ImageGenerator:
         self.class_dict = {0: 'airplane', 1: 'automobile', 2: 'bird', 3: 'cat', 4: 'deer', 5: 'dog', 6: 'frog',
                            7: 'horse', 8: 'ship', 9: 'truck'}
         
-        self.file_path = file_path
-        self.image_filenames = [filename for filename in os.listdir(file_path)]
-
-        with open(label_path, 'r') as file:
+        self.file_path = os.path.join('./data/', file_path)
+     
+        self.image_filenames = [filename for filename in os.listdir(self.file_path)]
+        
+        self.label_path = os.path.join('./data/', label_path)
+        with open(self.label_path, 'r') as file:
             self.labels = json.load(file)
 
         self.batch_size = batch_size
@@ -34,43 +36,60 @@ class ImageGenerator:
         self.rotation = rotation
         self.mirroring = mirroring
         self.shuffle = shuffle
+
+        # if self.shuffle:
+        #     random.shuffle(self.image_filenames)
+
         self.current_index = 0
         self.epoch_index = 0
-        self.end_epoch = False
+        # self.end_epoch = True
+        self.Num_batches = len(self.image_filenames) // self.batch_size
         
+
+
     def next(self):
         # This function creates a batch of images and corresponding labels and returns them.
         # In this context a "batch" of images just means a bunch, say 10 images that are forwarded at once.
         # Note that your amount of total data might not be divisible without remainder with the batch_size.
         # Think about how to handle such cases
         
-        if self.shuffle:
+        # if self.end_epoch:
+        #     self.current_index = 0
+        #     self.end_epoch = False
+    
+    # Shuffle the filenames at the beginning of each epoch if shuffle is enabled
+        if self.current_index == 0 and self.shuffle:
             random.shuffle(self.image_filenames)
         
-        images = []         #batch of images
-        labels = []         #array with corresponding labels
-        
-        for i in range(self.batch_size):
-            if self.current_index == len(self.image_filenames):
+        images = []  # Batch of images
+        labels = []  # Array with corresponding labels
+
+        # Create a batch
+        for _ in range(self.batch_size):
+            # Check if we have reached the end of the dataset
+            if self.current_index >= len(self.image_filenames):
+                # Reset to the beginning and increment epoch index
                 self.current_index = 0
                 self.epoch_index += 1
-                self.end_epoch = True
-            if self.current_index < len(self.image_filenames):
-                file_name = self.image_filenames[self.current_index]
-                src = np.load(f"{self.file_path}/{file_name}")
-                images.append(skimage.transform.resize(self.augment(src), self.image_size))
-                labels.append(self.labels[file_name.replace('.npy','')])
-                self.current_index += 1
-        
-        if self.end_epoch:
-            self.current_index = 0
-            self.end_epoch = False
-            
+                if self.shuffle:
+                    random.shuffle(self.image_filenames)  # Shuffle again for the new epoch
+
+            # Load the image and label if there are still images left
+            file_name = self.image_filenames[self.current_index]
+            src = np.load(f"{self.file_path}/{file_name}")
+            images.append(self.augment(src))
+            labels.append(self.labels[file_name.replace('.npy', '')])
+            self.current_index += 1
+
+        # Return the batch as numpy arrays
         return np.array(images), np.array(labels)
+
 
     def augment(self,img):
         # this function takes a single image as an input and performs a random transformation
         # (mirroring and/or rotation) on it and outputs the transformed image
+        if img.shape != self.image_size:
+            img = skimage.transform.resize(img, self.image_size)
         if self.mirroring:
             mirroring_tyoe = random.choice(("lr", "ud"))
             if mirroring_tyoe == "lr":
@@ -120,4 +139,3 @@ class ImageGenerator:
 
         plt.tight_layout()
         plt.show()
-
